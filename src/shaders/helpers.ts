@@ -56,11 +56,13 @@ export function createProgram(
 
   //Variables for this shader
   const position = gl.getAttribLocation(program, "a_position");
+  const color = gl.getAttribLocation(program, "a_color");
   const matrix = gl.getUniformLocation(program, "u_matrix");
 
   return {
     attributes: {
       position,
+      color
     },
     uniforms: {
       matrix,

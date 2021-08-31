@@ -16,28 +16,35 @@ type Programs = {
   simpleExample: ReturnType<typeof initSimpleShader>;
 };
 type AvailableObjects = "simpleTriangle";
+type Buffers = {
+  simpleTriangle: "color" | "position";
+};
 type Objects = {
-  [key in AvailableObjects]: WebGLBuffer;
+  [key in AvailableObjects]: { [key2 in Buffers[key]]: WebGLBuffer };
 };
 
-const CUBE = cube(40);
+const CUBE = cube(100);
 
 console.warn(
-  CUBE.reduce((r, i, index) => {
-    const arr = r[Math.floor(index / 3)];
-    if (!arr) r[Math.floor(index / 3)] = [i];
-    else arr.push(i);
-    return r;
-  }, [] as number[][])
+  CUBE.color
+    .reduce((r, i, index) => {
+      const arr = r[Math.floor(index / 3)];
+      if (!arr) r[Math.floor(index / 3)] = [i];
+      else arr.push(i);
+      return r;
+    }, [] as number[][])
     .map((i) => i.join(","))
     .join("\n")
 );
+console.warn(CUBE.data.length)
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContextRef = useRef<WebGLRenderingContext>();
   const programsRef = useRef<Programs>({} as any);
-  const positionBuffersRef = useRef<Objects>({} as any);
+  const positionBuffersRef = useRef<Objects>({
+    simpleTriangle: {},
+  } as any);
   useEffect(() => {
     resizeCanvasToDisplaySize(canvasRef.current!);
     const glContext = canvasRef.current!.getContext("webgl")!;
@@ -52,13 +59,21 @@ function App() {
 
     function _loadTriangleVertices() {
       const positionBuffer = glContext.createBuffer()!;
+      const colorBuffer = glContext.createBuffer()!;
       glContext.bindBuffer(glContext.ARRAY_BUFFER, positionBuffer);
       glContext.bufferData(
         glContext.ARRAY_BUFFER,
-        new Float32Array(CUBE),
+        new Float32Array(CUBE.data),
         glContext.STATIC_DRAW
       );
-      positionBuffersRef.current.simpleTriangle = positionBuffer;
+      glContext.bindBuffer(glContext.ARRAY_BUFFER, colorBuffer);
+      glContext.bufferData(
+        glContext.ARRAY_BUFFER,
+        new Uint8Array(CUBE.color),
+        glContext.STATIC_DRAW
+      );
+      positionBuffersRef.current.simpleTriangle.position = positionBuffer;
+      positionBuffersRef.current.simpleTriangle.color = colorBuffer;
     }
 
     _loadTriangleVertices();
@@ -69,7 +84,7 @@ function App() {
   const magic = useRef({
     transform: [0, 0, 0],
     rotate: [0],
-    scale: [5, 5, 1],
+    scale: [1, 1, 1],
   });
   useEffect(() => {
     window.onclick = () =>
@@ -104,11 +119,12 @@ function App() {
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0, 0, 0, 0.9);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
 
     function _renderTriangles() {
       gl.useProgram(programs.simpleExample.program);
-      gl.enableVertexAttribArray(programs.simpleExample.attributes.position);
 
       gl.uniformMatrix4fv(
         programs.simpleExample.uniforms.matrix,
@@ -117,13 +133,27 @@ function App() {
           generateMatrixFromOperations(
             {
               type: "translate",
-              x: -20,
-              y: -20,
-              z: 0,
+              x: -50,
+              y: -50,
+              z: 50,
+            },
+            {
+              type: "rotateX",
+              angle: magic.current.rotate[0],
             },
             {
               type: "rotateY",
               angle: magic.current.rotate[0],
+            },
+            {
+              type: "rotateZ",
+              angle: magic.current.rotate[0],
+            },
+            {
+              type: "scale",
+              factorX: magic.current.scale[0],
+              factorY: magic.current.scale[1],
+              factorZ: magic.current.scale[2],
             },
             // {
             //   type: "rotateX",
@@ -135,8 +165,8 @@ function App() {
             // },
             {
               type: "translate",
-              x: 200,
-              y: 200,
+              x: gl.canvas.width / 2 - 50,
+              y: gl.canvas.height / 2 - 50,
               z: 0,
             },
             {
@@ -155,8 +185,20 @@ function App() {
         )
       );
 
+      gl.enableVertexAttribArray(programs.simpleExample.attributes.color);
+      gl.bindBuffer(gl.ARRAY_BUFFER, objects.simpleTriangle.color);
+      gl.vertexAttribPointer(
+        programs.simpleExample.attributes.color,
+        3,
+        gl.UNSIGNED_BYTE,
+        true,
+        0,
+        0
+      );
+
+      gl.enableVertexAttribArray(programs.simpleExample.attributes.position);
       // Olha a partir deste ponto
-      gl.bindBuffer(gl.ARRAY_BUFFER, objects.simpleTriangle);
+      gl.bindBuffer(gl.ARRAY_BUFFER, objects.simpleTriangle.position);
 
       // A informacao ta encodada nesse formato
       gl.vertexAttribPointer(
@@ -172,7 +214,7 @@ function App() {
       gl.drawArrays(
         gl.TRIANGLES, //Triangulos??? Podemos mudar?
         0, // A partir de 0 ?
-        6 * 2 // Pinta 3 vertices ?
+        CUBE.data.length / 3 // Pinta 3 vertices ?
       );
     }
     _renderTriangles();
