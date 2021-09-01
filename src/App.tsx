@@ -8,9 +8,11 @@ import "react-toastify/dist/ReactToastify.css";
 import {
   flattenMatrix,
   generateMatrixFromOperations,
+  invertMatrix,
   rotate,
 } from "./math/helpers";
 import { cube } from "./objects/square";
+import { generateCameraLookTo } from "./camera";
 
 type Programs = {
   simpleExample: ReturnType<typeof initSimpleShader>;
@@ -36,12 +38,13 @@ console.warn(
     .map((i) => i.join(","))
     .join("\n")
 );
-console.warn(CUBE.data.length)
+console.warn(CUBE.data.length);
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContextRef = useRef<WebGLRenderingContext>();
   const programsRef = useRef<Programs>({} as any);
+  const lookAtRef = useRef<[number, number, number]>([0, 0, 0]);
   const positionBuffersRef = useRef<Objects>({
     simpleTriangle: {},
   } as any);
@@ -87,8 +90,23 @@ function App() {
     scale: [1, 1, 1],
   });
   useEffect(() => {
-    window.onclick = () =>
-      setInterval(() => {
+    window.addEventListener("keydown", ({ key }) => {
+      if (key === "ArrowUp") lookAtRef.current[1] += 1;
+      if (key === "ArrowDown") lookAtRef.current[1] -= 1;
+      if (key === "ArrowRight") lookAtRef.current[0] += 1;
+      if (key === "ArrowLeft") lookAtRef.current[0] -= 1;
+    });
+    let then = 0;
+    setInterval(() => {
+      requestAnimationFrame((now) => {
+        // Convert the time to seconds
+        now *= 0.001;
+        // Subtract the previous time from the current time
+        const deltaTime = now - then;
+
+        // Remember the current time for the next frame.
+        then = now;
+
         const error = canvasContextRef.current!.getError();
         if (error !== canvasContextRef.current!.NO_ERROR)
           toast(
@@ -97,9 +115,9 @@ function App() {
           );
         else {
           if (magic.current.rotate[0] < 360) {
-            magic.current.rotate[0] += 0.5;
+            magic.current.rotate[0] += 360 * deltaTime;
           } else {
-            magic.current.rotate[0] = 0.5;
+            magic.current.rotate[0] = 360 * deltaTime;
             if (Math.random() < 0.5) {
               magic.current.scale[0] += 0.1;
             } else {
@@ -109,8 +127,9 @@ function App() {
 
           _render();
         }
-      }, 1000 / 60);
-  });
+      });
+    }, 1000 / 120);
+  }, []);
 
   function _render() {
     const gl = canvasContextRef.current!;
@@ -135,19 +154,7 @@ function App() {
               type: "translate",
               x: -50,
               y: -50,
-              z: 50,
-            },
-            {
-              type: "rotateX",
-              angle: magic.current.rotate[0],
-            },
-            {
-              type: "rotateY",
-              angle: magic.current.rotate[0],
-            },
-            {
-              type: "rotateZ",
-              angle: magic.current.rotate[0],
+              z: -50,
             },
             {
               type: "scale",
@@ -160,26 +167,49 @@ function App() {
             //   angle: magic.current.rotate[0],
             // },
             // {
+            //   type: "rotateY",
+            //   angle: magic.current.rotate[0],
+            // },
+            // {
             //   type: "rotateZ",
             //   angle: magic.current.rotate[0],
             // },
+            // {
+            //   type: "rotateX",
+            //   angle: magic.current.rotate[0],
+            // },
+            // {
+            //   type: "rotateZ",
+            //   angle: magic.current.rotate[0],
+            // },,
+            // Create camera translationMatrix
             {
-              type: "translate",
-              x: gl.canvas.width / 2 - 50,
-              y: gl.canvas.height / 2 - 50,
-              z: 0,
+              type: "matrix",
+              matrix: invertMatrix(
+                generateCameraLookTo(
+                  generateMatrixFromOperations(
+                    {
+                      type: "translate",
+                      x: 0,
+                      y: 0,
+                      z: 300,
+                    },
+
+                    {
+                      type: "rotateY",
+                      angle: magic.current.rotate[0],
+                    }
+                  ),
+                  lookAtRef.current
+                )
+              ),
             },
             {
-              type: "scale",
-              factorX: 2 / gl.canvas.width,
-              factorY: -2 / gl.canvas.height,
-              factorZ: 2 / gl.canvas.width,
-            },
-            {
-              type: "translate",
-              x: -1,
-              y: 1,
-              z: 0,
+              type: "perspective",
+              fieldOfViewInRadians: 120,
+              aspect: gl.canvas.width / gl.canvas.height,
+              far: 1000,
+              near: 1,
             }
           )
         )

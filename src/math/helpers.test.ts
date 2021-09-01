@@ -1,5 +1,6 @@
 import {
   generateMatrixFromOperations,
+  invertMatrix,
   Matrix3D,
   multiplyMatrixes,
   OperationData,
@@ -148,4 +149,20 @@ it("Should multiply different dimensions matrixes", () => {
     [1], 
     [1]
   ] as const)).toEqual([[10]]);
+});
+
+test("Should generate the inverse matrix correctly", () => {
+  //prettier-ignore
+  const matrix: Matrix3D = [
+    [1,0,0,0],
+    [0,1,0,0],
+    [0,0,1,0],
+    [100,200,0,1]
+  ]
+  expect(invertMatrix(matrix)).toEqual([
+    [1,0,0,0],
+    [0,1,0,0],
+    [0,0,1,0],
+    [-100,-200,0,1]
+  ])
 });

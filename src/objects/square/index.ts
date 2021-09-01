@@ -32,7 +32,7 @@ export function cube(size: number) {
         type: "translate",
         x: size / 2,
         y: size / 2,
-        z: -size,
+        z: size,
       }
     )
   ).map((a) => a.slice(0, 3));
@@ -47,13 +47,13 @@ export function cube(size: number) {
       },
       {
         type: "rotateY",
-        angle: 90,
+        angle: -90,
       },
       {
         type: "translate",
         x: size,
         y: size / 2,
-        z: -size / 2,
+        z: size / 2,
       }
     )
   ).map((a) => a.slice(0, 3));
@@ -68,17 +68,38 @@ export function cube(size: number) {
       },
       {
         type: "rotateY",
-        angle: -90,
+        angle: 90,
       },
       {
         type: "translate",
         x: 0,
         y: size / 2,
-        z: -size / 2,
+        z: size / 2,
       }
     )
   ).map((a) => a.slice(0, 3));
   const topFace = multiplyMatrixes(
+    frontFace.map((a) => [...a, 1]),
+    generateMatrixFromOperations(
+      {
+        type: "translate",
+        x: -size / 2,
+        y: -size / 2,
+        z: 0,
+      },
+      {
+        type: "rotateX",
+        angle: -90,
+      },
+      {
+        type: "translate",
+        x: size / 2,
+        y: 0,
+        z: size / 2,
+      }
+    )
+  ).map((a) => a.slice(0, 3));
+  const bottomFace = multiplyMatrixes(
     frontFace.map((a) => [...a, 1]),
     generateMatrixFromOperations(
       {
@@ -94,34 +115,13 @@ export function cube(size: number) {
       {
         type: "translate",
         x: size / 2,
-        y: 0,
-        z: -size / 2,
-      }
-    )
-  ).map((a) => a.slice(0, 3));
-  const bottomFace = multiplyMatrixes(
-    frontFace.map((a) => [...a, 1]),
-    generateMatrixFromOperations(
-      {
-        type: "translate",
-        x: -size / 2,
-        y: -size / 2,
-        z: 0,
-      },
-      {
-        type: "rotateX",
-        angle: -90,
-      },
-      {
-        type: "translate",
-        x: size / 2,
         y: size,
-        z: -size / 2,
+        z: size / 2,
       }
     )
   ).map((a) => a.slice(0, 3));
 
-  const data = flattenMatrix([...frontFace, ...bottomFace, ...topFace, ...leftFace, ...rightFace, ...backFace]).map(a => Math.round(a));
+  const data = flattenMatrix([...frontFace, ...bottomFace, ...topFace, ...leftFace, ...rightFace, ...backFace]).map(a => a);
   const randomColor: { [k: number]: [number, number, number] } = {};
   return {
     data,
