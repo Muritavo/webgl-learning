@@ -5,7 +5,7 @@ import vert from "./.vert";
 import frag from "./.frag";
 import { Program } from "../../objects/helpers";
 
-export default new (class MonoColor extends Program<
+export default new (class VertexColor extends Program<
   "a_color",
   ""
 > {

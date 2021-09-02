@@ -7,51 +7,27 @@ import "react-toastify/dist/ReactToastify.css";
 import { cube } from "./objects";
 import { createStaticCamera, generateCameraLookTo } from "./camera";
 import { getGLContext, ObjectModel, setGLContext } from "./objects/helpers";
-import monoColor from "./shaders/monoColor";
-import { normalize, normalizeTo1 } from "./math/helpers";
-
-type Programs = {
-  monoColor: typeof import("./shaders/monoColor")["default"];
-};
-type AvailableObjects = "simpleTriangle";
-type Buffers = {
-  simpleTriangle: "color" | "position";
-};
-type Objects = {
-  [key in AvailableObjects]: { [key2 in Buffers[key]]: WebGLBuffer };
-};
+import vertexColor from "./shaders/vertexColor";
 
 const CUBE = cube(100);
-
-console.warn(
-  CUBE.data
-    .reduce((r, i, index) => {
-      const arr = r[Math.floor(index / 3)];
-      if (!arr) r[Math.floor(index / 3)] = [i];
-      else arr.push(i);
-      return r;
-    }, [] as number[][])
-    .map((i) => i.join(","))
-    .join("\n")
-);
-console.warn(CUBE.data.length);
+const CUBE2 = cube(50);
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContextRef = useRef<WebGLRenderingContext>();
-  const programsRef = useRef<Programs>({} as any);
-  const lookAtRef = useRef<[number, number, number]>([0, 0, 0]);
-  const cubeInstanceRef = useRef<ObjectModel<typeof monoColor>>(null as any);
+  const lookAtRef = useRef<[number, number, number]>([50, 0, 0]);
+  const cubeInstanceRef = useRef<ObjectModel<typeof vertexColor>>(null as any);
+  const cube2InstanceRef = useRef<ObjectModel<typeof vertexColor>>(null as any);
 
   useEffect(() => {
     resizeCanvasToDisplaySize(canvasRef.current!);
     const glContext = canvasRef.current!.getContext("webgl")!;
     setGLContext(glContext);
     canvasContextRef.current = glContext!;
-    programsRef.current.monoColor = require("./shaders/monoColor").default;
+    const monoColorProgram = require("./shaders/monoColor").default;
 
     function _loadCubeData() {
-      cubeInstanceRef.current = new ObjectModel(programsRef.current.monoColor);
+      cubeInstanceRef.current = new ObjectModel(monoColorProgram);
       cubeInstanceRef.current.load("a_vertex", new Float32Array(CUBE.data));
       cubeInstanceRef.current.load(
         "a_color",
@@ -60,8 +36,21 @@ function App() {
         true
       );
       cubeInstanceRef.current.setCamera(
-        createStaticCamera([0, 60, 300], lookAtRef.current!)
+        createStaticCamera([50, 60, 300], lookAtRef.current!)
       );
+
+      cube2InstanceRef.current = new ObjectModel(monoColorProgram);
+      cube2InstanceRef.current.load("a_vertex", new Float32Array(CUBE2.data));
+      cube2InstanceRef.current.load(
+        "a_color",
+        new Uint8Array(CUBE2.color),
+        3,
+        true
+      );
+      cube2InstanceRef.current.setCamera(
+        createStaticCamera([50, 60, 300], lookAtRef.current!)
+      );
+      cube2InstanceRef.current.set("position", [75 + 20, 0, 0]);
     }
 
     _loadCubeData();
@@ -74,6 +63,7 @@ function App() {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.clear(gl.DEPTH_BUFFER_BIT);
     cubeInstanceRef.current.draw();
+    cube2InstanceRef.current.draw();
   }
 
   const magic = useRef({
@@ -95,7 +85,10 @@ function App() {
         cubeInstanceRef.current.set("position", whichArrayToChange);
       }
       cubeInstanceRef.current.setCamera(
-        createStaticCamera([0, 60, 300], lookAtRef.current!)
+        createStaticCamera([50, 60, 300], lookAtRef.current!)
+      );
+      cube2InstanceRef.current.setCamera(
+        createStaticCamera([50, 60, 300], lookAtRef.current!)
       );
     });
     let then = 0;

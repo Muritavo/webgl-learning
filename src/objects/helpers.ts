@@ -82,7 +82,6 @@ export class ObjectModel<P extends Program<any, any>> {
 
   setCamera(matrix: Matrix3D) {
     this._cameraMatrix = matrix;
-    this._resetMatrix();
   }
 
   load(
@@ -115,6 +114,7 @@ export class ObjectModel<P extends Program<any, any>> {
     this.temp.push(bufferRef);
     this._glContext.useProgram(this._program.program);
     this._glContext.bindBuffer(this._glContext.ARRAY_BUFFER, bufferRef);
+    this._glContext.enableVertexAttribArray(this._program.attributes[a]!);
     this._glContext.bufferData(
       this._glContext.ARRAY_BUFFER,
       data,
@@ -135,7 +135,6 @@ export class ObjectModel<P extends Program<any, any>> {
           z: -max[2] / 2,
         });
         this.set("position", [0, 0, 0]);
-        this._resetMatrix();
         this._vertexes = data.length / dimensions;
         break;
     }
@@ -173,10 +172,9 @@ export class ObjectModel<P extends Program<any, any>> {
         z: this._position[2],
       }
     );
-    this._resetMatrix();
   }
 
-  _resetMatrix() {
+  _computeMatrix() {
     if (!this._cameraMatrix) return;
     this._glContext.useProgram(this._program.program);
     this._glContext.uniformMatrix4fv(
@@ -198,13 +196,13 @@ export class ObjectModel<P extends Program<any, any>> {
     if (!this._cameraMatrix)
       throw new Error("Trying to draw without camera matrix");
     this._glContext.useProgram(this._program.program);
+    this._computeMatrix();
 
     Object.keys(this._buffers).forEach((b) => {
       this._glContext.bindBuffer(
         _glContext.ARRAY_BUFFER,
         this._buffers[b]!.ref
       );
-      this._glContext.enableVertexAttribArray(this._program.attributes[b]!);
       this._glContext.vertexAttribPointer(
         this._program.attributes[b]!,
         this._buffers[b]!.dim,
