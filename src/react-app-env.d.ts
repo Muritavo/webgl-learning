@@ -9,3 +9,5 @@ declare module "*.frag" {
   const src: string;
   export default src;
 }
+
+type Coordinate = [number, number, number];

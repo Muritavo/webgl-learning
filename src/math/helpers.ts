@@ -1,12 +1,3 @@
-export function rotate(angleX: number) {
-  const angleXToRadians = (angleX * Math.PI) / 180;
-  const angleYToRadians = (angleX * Math.PI) / 180;
-  return {
-    x: Math.sin(angleXToRadians),
-    y: Math.cos(angleYToRadians),
-  };
-}
-
 export type Matrix3D = [
   [number, number, number, number],
   [number, number, number, number],
@@ -43,7 +34,7 @@ export type OperationData =
     };
 
 // prettier-ignore
-function IDENTITY_MATRIX() {
+export function IDENTITY_MATRIX() {
   return [
     [1, 0, 0, 0],  // cos, -sin, ?
     [0, 1, 0, 0],  // sin, cos, ?
@@ -119,13 +110,6 @@ export function generateMatrixFromOperations(
 
   return resultingMatrix || IDENTITY_MATRIX();
 }
-
-// 00 * 00 - 01 * 10 - 02 * 20
-// 00 * 10 - 01 * 11 - 02 * 12
-
-// 1 row * 1 column = 1x1
-// 1 row * 2 column = 1x2
-// 1 row * 3 column = 1x3
 
 type NumberMatrix = readonly (readonly number[])[];
 export function multiplyMatrixes<X extends NumberMatrix>(
@@ -305,4 +289,15 @@ export function invertMatrix(matrix: Matrix3D) {
     r[row][i % 4] = val * det;
     return r;
   }, [] as number[][]) as Matrix3D;
+}
+
+export function normalize(v: Coordinate): Coordinate {
+  const variation = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  return variation > 0
+    ? [v[0] / variation, v[1] / variation, v[2] / variation]
+    : [0, 0, 0];
+}
+
+export function normalizeTo1(arr: number[], max: number) {
+    return arr.map((a) => a / max);
 }

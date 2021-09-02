@@ -2,17 +2,17 @@ import {
   flattenMatrix,
   generateMatrixFromOperations,
   multiplyMatrixes,
-} from "../../math/helpers";
+} from "../math/helpers";
 
 type POSITION = [number, number, number];
 
 export function cube(size: number) {
   // prettier-ignore
   const frontFace1 = [
-      [0, 0, 0], 
-      [0, size, 0],
-      [size, 0, 0], 
-    ];
+        [0, 0, 0], 
+        [0, size, 0],
+        [size, 0, 0], 
+      ];
   const frontFace2 = [...frontFace1.slice(1).reverse(), [size, size, 0]];
   const frontFace = [...frontFace1, ...frontFace2];
   const backFace = multiplyMatrixes(
@@ -121,7 +121,14 @@ export function cube(size: number) {
     )
   ).map((a) => a.slice(0, 3));
 
-  const data = flattenMatrix([...frontFace, ...bottomFace, ...topFace, ...leftFace, ...rightFace, ...backFace]).map(a => a);
+  const data = flattenMatrix([
+    ...frontFace,
+    ...bottomFace,
+    ...topFace,
+    ...leftFace,
+    ...rightFace,
+    ...backFace,
+  ]).map((a) => a);
   const randomColor: { [k: number]: [number, number, number] } = {};
   return {
     data,

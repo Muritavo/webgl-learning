@@ -1,4 +1,10 @@
-import { Matrix3D, multiplyMatrixes } from "../math/helpers";
+import {
+  generateMatrixFromOperations,
+  invertMatrix,
+  Matrix3D,
+  normalize,
+} from "../math/helpers";
+import { getGLContext } from "../objects/helpers";
 
 type Coordinate = [number, number, number];
 
@@ -8,13 +14,6 @@ function crossVector(a: Coordinate, b: Coordinate) {
     a[2] * b[0] - a[0] * b[2],
     a[0] * b[1] - a[1] * b[0],
   ] as Coordinate;
-}
-
-function normalize(v: Coordinate): Coordinate {
-  const variation = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-  return variation > 0
-    ? [v[0] / variation, v[1] / variation, v[2] / variation]
-    : [0, 0, 0];
 }
 
 export function generateCameraLookTo(
@@ -39,6 +38,36 @@ export function generateCameraLookTo(
     [...vectorCoordinate, 0],
     [...whereIsTheCameraAt, 1],
   ] as Matrix3D;
-  
+
   return lookAtMatrix as Matrix3D;
+}
+
+export function createStaticCamera(
+  whereIsTheCameraAt: Coordinate,
+  whereItShouldLookTo: Coordinate
+) {
+  const gl = getGLContext();
+  return generateMatrixFromOperations(
+    {
+      type: "matrix",
+      matrix: invertMatrix(
+        generateCameraLookTo(
+          generateMatrixFromOperations({
+            type: "translate",
+            x: whereIsTheCameraAt[0],
+            y: whereIsTheCameraAt[1],
+            z: whereIsTheCameraAt[2],
+          }),
+          whereItShouldLookTo
+        )
+      ),
+    },
+    {
+      type: "perspective",
+      fieldOfViewInRadians: 120,
+      aspect: gl.canvas.width / gl.canvas.height,
+      far: 1000,
+      near: 1,
+    }
+  );
 }

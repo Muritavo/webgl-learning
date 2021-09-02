@@ -2,20 +2,16 @@ import React from "react";
 import { useEffect } from "react";
 import { useRef } from "react";
 import { resizeCanvasToDisplaySize } from "./helpers";
-import initSimpleShader from "./shaders/simpleExample";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {
-  flattenMatrix,
-  generateMatrixFromOperations,
-  invertMatrix,
-  rotate,
-} from "./math/helpers";
-import { cube } from "./objects/square";
-import { generateCameraLookTo } from "./camera";
+import { cube } from "./objects";
+import { createStaticCamera, generateCameraLookTo } from "./camera";
+import { getGLContext, ObjectModel, setGLContext } from "./objects/helpers";
+import monoColor from "./shaders/monoColor";
+import { normalize, normalizeTo1 } from "./math/helpers";
 
 type Programs = {
-  simpleExample: ReturnType<typeof initSimpleShader>;
+  monoColor: typeof import("./shaders/monoColor")["default"];
 };
 type AvailableObjects = "simpleTriangle";
 type Buffers = {
@@ -28,7 +24,7 @@ type Objects = {
 const CUBE = cube(100);
 
 console.warn(
-  CUBE.color
+  CUBE.data
     .reduce((r, i, index) => {
       const arr = r[Math.floor(index / 3)];
       if (!arr) r[Math.floor(index / 3)] = [i];
@@ -45,44 +41,40 @@ function App() {
   const canvasContextRef = useRef<WebGLRenderingContext>();
   const programsRef = useRef<Programs>({} as any);
   const lookAtRef = useRef<[number, number, number]>([0, 0, 0]);
-  const positionBuffersRef = useRef<Objects>({
-    simpleTriangle: {},
-  } as any);
+  const cubeInstanceRef = useRef<ObjectModel<typeof monoColor>>(null as any);
+
   useEffect(() => {
     resizeCanvasToDisplaySize(canvasRef.current!);
     const glContext = canvasRef.current!.getContext("webgl")!;
+    setGLContext(glContext);
     canvasContextRef.current = glContext!;
-    glContext.clearColor(0, 0, 0, 1);
-    glContext.clear(glContext.COLOR_BUFFER_BIT);
-    programsRef.current.simpleExample = initSimpleShader(glContext);
+    programsRef.current.monoColor = require("./shaders/monoColor").default;
 
-    /** @importante É ncessário 'ativar' o programa antes de declarar suas variaveis */
-    glContext.useProgram(programsRef.current.simpleExample.program);
-    // Define os valores requeridos
-
-    function _loadTriangleVertices() {
-      const positionBuffer = glContext.createBuffer()!;
-      const colorBuffer = glContext.createBuffer()!;
-      glContext.bindBuffer(glContext.ARRAY_BUFFER, positionBuffer);
-      glContext.bufferData(
-        glContext.ARRAY_BUFFER,
-        new Float32Array(CUBE.data),
-        glContext.STATIC_DRAW
-      );
-      glContext.bindBuffer(glContext.ARRAY_BUFFER, colorBuffer);
-      glContext.bufferData(
-        glContext.ARRAY_BUFFER,
+    function _loadCubeData() {
+      cubeInstanceRef.current = new ObjectModel(programsRef.current.monoColor);
+      cubeInstanceRef.current.load("a_vertex", new Float32Array(CUBE.data));
+      cubeInstanceRef.current.load(
+        "a_color",
         new Uint8Array(CUBE.color),
-        glContext.STATIC_DRAW
+        3,
+        true
       );
-      positionBuffersRef.current.simpleTriangle.position = positionBuffer;
-      positionBuffersRef.current.simpleTriangle.color = colorBuffer;
+      cubeInstanceRef.current.setCamera(
+        createStaticCamera([0, 60, 300], lookAtRef.current!)
+      );
     }
 
-    _loadTriangleVertices();
+    _loadCubeData();
     _render();
     // alert(glContext.geterror());
   });
+
+  function _render() {
+    const gl = getGLContext();
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    cubeInstanceRef.current.draw();
+  }
 
   const magic = useRef({
     transform: [0, 0, 0],
@@ -90,11 +82,21 @@ function App() {
     scale: [1, 1, 1],
   });
   useEffect(() => {
-    window.addEventListener("keydown", ({ key }) => {
-      if (key === "ArrowUp") lookAtRef.current[1] += 1;
-      if (key === "ArrowDown") lookAtRef.current[1] -= 1;
-      if (key === "ArrowRight") lookAtRef.current[0] += 1;
-      if (key === "ArrowLeft") lookAtRef.current[0] -= 1;
+    window.addEventListener("keydown", ({ key, shiftKey, altKey }) => {
+      const multiplier = shiftKey ? 10 : 1;
+      const whichArrayToChange = altKey
+        ? cubeInstanceRef.current._position
+        : lookAtRef.current;
+      if (key === "ArrowUp") whichArrayToChange[1] += 1 * multiplier;
+      if (key === "ArrowDown") whichArrayToChange[1] -= 1 * multiplier;
+      if (key === "ArrowRight") whichArrayToChange[0] += 1 * multiplier;
+      if (key === "ArrowLeft") whichArrayToChange[0] -= 1 * multiplier;
+      if (altKey) {
+        cubeInstanceRef.current.set("position", whichArrayToChange);
+      }
+      cubeInstanceRef.current.setCamera(
+        createStaticCamera([0, 60, 300], lookAtRef.current!)
+      );
     });
     let then = 0;
     setInterval(() => {
@@ -115,9 +117,9 @@ function App() {
           );
         else {
           if (magic.current.rotate[0] < 360) {
-            magic.current.rotate[0] += 360 * deltaTime;
+            magic.current.rotate[0] += 90 * deltaTime;
           } else {
-            magic.current.rotate[0] = 360 * deltaTime;
+            magic.current.rotate[0] = 90 * deltaTime;
             if (Math.random() < 0.5) {
               magic.current.scale[0] += 0.1;
             } else {
@@ -130,125 +132,6 @@ function App() {
       });
     }, 1000 / 120);
   }, []);
-
-  function _render() {
-    const gl = canvasContextRef.current!;
-    const programs = programsRef.current;
-    const objects = positionBuffersRef.current;
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.clearColor(0, 0, 0, 0.9);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.clear(gl.DEPTH_BUFFER_BIT);
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-
-    function _renderTriangles() {
-      gl.useProgram(programs.simpleExample.program);
-
-      gl.uniformMatrix4fv(
-        programs.simpleExample.uniforms.matrix,
-        false,
-        flattenMatrix(
-          generateMatrixFromOperations(
-            {
-              type: "translate",
-              x: -50,
-              y: -50,
-              z: -50,
-            },
-            {
-              type: "scale",
-              factorX: magic.current.scale[0],
-              factorY: magic.current.scale[1],
-              factorZ: magic.current.scale[2],
-            },
-            // {
-            //   type: "rotateX",
-            //   angle: magic.current.rotate[0],
-            // },
-            // {
-            //   type: "rotateY",
-            //   angle: magic.current.rotate[0],
-            // },
-            // {
-            //   type: "rotateZ",
-            //   angle: magic.current.rotate[0],
-            // },
-            // {
-            //   type: "rotateX",
-            //   angle: magic.current.rotate[0],
-            // },
-            // {
-            //   type: "rotateZ",
-            //   angle: magic.current.rotate[0],
-            // },,
-            // Create camera translationMatrix
-            {
-              type: "matrix",
-              matrix: invertMatrix(
-                generateCameraLookTo(
-                  generateMatrixFromOperations(
-                    {
-                      type: "translate",
-                      x: 0,
-                      y: 0,
-                      z: 300,
-                    },
-
-                    {
-                      type: "rotateY",
-                      angle: magic.current.rotate[0],
-                    }
-                  ),
-                  lookAtRef.current
-                )
-              ),
-            },
-            {
-              type: "perspective",
-              fieldOfViewInRadians: 120,
-              aspect: gl.canvas.width / gl.canvas.height,
-              far: 1000,
-              near: 1,
-            }
-          )
-        )
-      );
-
-      gl.enableVertexAttribArray(programs.simpleExample.attributes.color);
-      gl.bindBuffer(gl.ARRAY_BUFFER, objects.simpleTriangle.color);
-      gl.vertexAttribPointer(
-        programs.simpleExample.attributes.color,
-        3,
-        gl.UNSIGNED_BYTE,
-        true,
-        0,
-        0
-      );
-
-      gl.enableVertexAttribArray(programs.simpleExample.attributes.position);
-      // Olha a partir deste ponto
-      gl.bindBuffer(gl.ARRAY_BUFFER, objects.simpleTriangle.position);
-
-      // A informacao ta encodada nesse formato
-      gl.vertexAttribPointer(
-        programs.simpleExample.attributes.position, // O programa a ser usado
-        3, //Quantos valores definem um vertice
-        gl.FLOAT, // Os attributos sao do tipo float 32
-        false, // Nao normaliza o dado ????????
-        0, // offset a cada iteracao
-        0 // Comeca a partir do primeiro vertice
-      );
-
-      // Pode gerar os triangulos agora que tudo esta configurado
-      gl.drawArrays(
-        gl.TRIANGLES, //Triangulos??? Podemos mudar?
-        0, // A partir de 0 ?
-        CUBE.data.length / 3 // Pinta 3 vertices ?
-      );
-    }
-    _renderTriangles();
-  }
 
   return (
     <>
