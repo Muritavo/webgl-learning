@@ -174,21 +174,25 @@ export class ObjectModel<P extends Program<any, any>> {
     );
   }
 
+  generateMatrix() {
+    return flattenMatrix(
+      multiplyMatrixes(
+        multiplyMatrixes(
+          this._transformationMatrix,
+          this._otherTransformationMatrixes
+        ) as Matrix3D,
+        this._cameraMatrix
+      )
+    );
+  }
+
   _computeMatrix() {
     if (!this._cameraMatrix) return;
     this._glContext.useProgram(this._program.program);
     this._glContext.uniformMatrix4fv(
       this._program.uniforms.u_transformMatrix!,
       false,
-      flattenMatrix(
-        multiplyMatrixes(
-          multiplyMatrixes(
-            this._transformationMatrix,
-            this._otherTransformationMatrixes
-          ) as Matrix3D,
-          this._cameraMatrix
-        )
-      )
+      this.generateMatrix()
     );
   }
 

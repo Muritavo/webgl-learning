@@ -8,9 +8,16 @@ import { cube } from "./objects";
 import { createStaticCamera, generateCameraLookTo } from "./camera";
 import { getGLContext, ObjectModel, setGLContext } from "./objects/helpers";
 import vertexColor from "./shaders/vertexColor";
+import {
+  flattenMatrix,
+  generateMatrixFromOperations,
+  IDENTITY_MATRIX,
+} from "./math/helpers";
 
 const CUBE = cube(100);
 const CUBE2 = cube(50);
+
+const initialCameraPosition: Coordinate = [50, 0, 300];
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -18,13 +25,14 @@ function App() {
   const lookAtRef = useRef<[number, number, number]>([50, 0, 0]);
   const cubeInstanceRef = useRef<ObjectModel<typeof vertexColor>>(null as any);
   const cube2InstanceRef = useRef<ObjectModel<typeof vertexColor>>(null as any);
+  const h1Ref = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     resizeCanvasToDisplaySize(canvasRef.current!);
     const glContext = canvasRef.current!.getContext("webgl")!;
     setGLContext(glContext);
     canvasContextRef.current = glContext!;
-    const monoColorProgram = require("./shaders/monoColor").default;
+    const monoColorProgram = require("./shaders/vertexColor").default;
 
     function _loadCubeData() {
       cubeInstanceRef.current = new ObjectModel(monoColorProgram);
@@ -36,7 +44,7 @@ function App() {
         true
       );
       cubeInstanceRef.current.setCamera(
-        createStaticCamera([50, 60, 300], lookAtRef.current!)
+        createStaticCamera(initialCameraPosition, lookAtRef.current!)
       );
 
       cube2InstanceRef.current = new ObjectModel(monoColorProgram);
@@ -48,7 +56,7 @@ function App() {
         true
       );
       cube2InstanceRef.current.setCamera(
-        createStaticCamera([50, 60, 300], lookAtRef.current!)
+        createStaticCamera(initialCameraPosition, lookAtRef.current!)
       );
       cube2InstanceRef.current.set("position", [75 + 20, 0, 0]);
     }
@@ -85,10 +93,10 @@ function App() {
         cubeInstanceRef.current.set("position", whichArrayToChange);
       }
       cubeInstanceRef.current.setCamera(
-        createStaticCamera([50, 60, 300], lookAtRef.current!)
+        createStaticCamera(initialCameraPosition, lookAtRef.current!)
       );
       cube2InstanceRef.current.setCamera(
-        createStaticCamera([50, 60, 300], lookAtRef.current!)
+        createStaticCamera(initialCameraPosition, lookAtRef.current!)
       );
     });
     let then = 0;
@@ -121,21 +129,43 @@ function App() {
           }
 
           _render();
+          const proportion = window.innerWidth / window.innerHeight;
+          const proportion2 = window.innerHeight / window.innerWidth;
+          h1Ref.current!.style.transform = `matrix3d(${flattenMatrix(
+            generateMatrixFromOperations(
+              {
+                type: "translate",
+                x: 0, // Arbitrarios, como fazemos para tornar dinamicos?
+                y: 0, // Arbitrarios, como fazemos para tornar dinamicos?
+                z: 50,
+              },
+              {
+                type: "matrix",
+                matrix: cubeInstanceRef.current._cameraMatrix,
+              },
+              {
+                type: "scale",
+                factorX: window.innerWidth / 2,
+                factorY: window.innerHeight / 2,
+                factorZ: 1,
+              }
+            )
+          )})`;
 
-          cubeInstanceRef.current.set("rotation", [
-            magic.current.rotate[0] * 3,
-            magic.current.rotate[0],
-            magic.current.rotate[0] * 2,
-          ]);
+          // cubeInstanceRef.current.set("rotation", [
+          //   magic.current.rotate[0] * 3,
+          //   magic.current.rotate[0],
+          //   magic.current.rotate[0] * 2,
+          // ]);
 
-          cube2InstanceRef.current.set(
-            "rotation",
-            [
-              magic.current.rotate[0] * 3,
-              magic.current.rotate[0],
-              magic.current.rotate[0] * 2,
-            ].map((a) => -1 * a) as Coordinate
-          );
+          // cube2InstanceRef.current.set(
+          //   "rotation",
+          //   [
+          //     magic.current.rotate[0] * 3,
+          //     magic.current.rotate[0],
+          //     magic.current.rotate[0] * 2,
+          //   ].map((a) => -1 * a) as Coordinate
+          // );
         }
       });
     }, 1000 / 120);
@@ -148,6 +178,20 @@ function App() {
         ref={canvasRef}
         onClick={_render}
       />
+      <h1
+        ref={h1Ref}
+        style={{
+          position: "absolute",
+          color: "white",
+          width: "100px",
+          height: "100px",
+          backgroundColor: "#fff9",
+          top: window.innerHeight / 2,
+          left: window.innerWidth / 2,
+        }}
+      >
+        SOME TEXT
+      </h1>
       <ToastContainer />
     </>
   );
