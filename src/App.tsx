@@ -110,9 +110,9 @@ function App() {
           );
         else {
           if (magic.current.rotate[0] < 360) {
-            magic.current.rotate[0] += 90 * deltaTime;
+            magic.current.rotate[0] += 10 * deltaTime;
           } else {
-            magic.current.rotate[0] = 90 * deltaTime;
+            magic.current.rotate[0] = 10 * deltaTime;
             if (Math.random() < 0.5) {
               magic.current.scale[0] += 0.1;
             } else {
@@ -121,6 +121,21 @@ function App() {
           }
 
           _render();
+
+          cubeInstanceRef.current.set("rotation", [
+            magic.current.rotate[0] * 3,
+            magic.current.rotate[0],
+            magic.current.rotate[0] * 2,
+          ]);
+
+          cube2InstanceRef.current.set(
+            "rotation",
+            [
+              magic.current.rotate[0] * 3,
+              magic.current.rotate[0],
+              magic.current.rotate[0] * 2,
+            ].map((a) => -1 * a) as Coordinate
+          );
         }
       });
     }, 1000 / 120);

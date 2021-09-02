@@ -15,7 +15,7 @@ export function setGLContext(glContext: WebGLRenderingContext) {
   _glContext = glContext;
   glContext.clearColor(0, 0, 0, 0.8);
   glContext.clear(glContext.COLOR_BUFFER_BIT);
-  // glContext.enable(glContext.CULL_FACE);
+  glContext.enable(glContext.CULL_FACE);
   glContext.enable(glContext.DEPTH_TEST);
   glContext.viewport(0, 0, glContext.canvas.width, glContext.canvas.height);
 }
